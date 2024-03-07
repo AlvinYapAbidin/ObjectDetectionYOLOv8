@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 2.8)
+project( dnn )
+set(OpenCV_DIR "/Users/moon/work/dotyklab/dotykMentor/1_build_opencv/install/OpenCV/lib/cmake/opencv4")
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable( dnn main.cpp )
+target_link_libraries( dnn ${OpenCV_LIBS} )
