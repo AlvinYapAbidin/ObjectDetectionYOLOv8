@@ -1,0 +1,8 @@
+path: /home/alvin/Documents/Projects/Computer_Vision_Projects/BasketballKalman/data
+train: images/train # train images
+val: images/train # val  images
+
+# Classes
+names:
+  0: basketball
+  1: rim
