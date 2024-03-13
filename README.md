@@ -11,6 +11,7 @@ Object detection is a critical task in computer vision, finding applications in 
 - **Model Training**: Utilizes `train_model.py` for training the YOLOv8 model on custom datasets, enabling the model to recognize and locate objects with high precision.
 - **Model Exporting**: The `export.py` script converts the trained model into the ONNX format, ensuring compatibility across different platforms and facilitating easy integration into production environments.
 - **Object Detection**: `predict.py` demonstrates the model's capability to detect objects in new images, showcasing the practical application of the trained model.
+- **Object Detection in ONNX and C++**:   `main.cpp` and  `inference.cpp` utilise the ONNX model for object detection within C++ where we will extract coordinates.
 - **Data Anotation**: we utilised CVAT.ai to annotate over 900 basketball images for our dataset to track baskeballs and basketball rims.
 
 ## Technologies Used
