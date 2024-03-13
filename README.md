@@ -62,9 +62,8 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Contact
 
-Your Name - [@yourtwitterhandle](https://twitter.com/yourtwitterhandle) - email@example.com
+Alvin Yap Abidin - alvin.yapabidin@gmail.com - https://www.linkedin.com/in/alvin-yap-abidin/
 
-Project Link: [https://github.com/yourusername/yourprojectname](https://github.com/yourusername/yourprojectname)
 
 ---
 
