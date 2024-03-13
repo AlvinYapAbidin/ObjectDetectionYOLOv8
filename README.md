@@ -24,7 +24,7 @@ Object detection is a critical task in computer vision, finding applications in 
 - **C++**: Programming language used to implement object detection with the ONNX model.
 - **OpenCV (cv2)**: For image processing tasks, including reading and writing.
 - **ONNX**: Provides a platform-neutral format for model sharing, ensuring broad compatibility.
-- ""CVAT.ai"": For annotating the image dataset.
+- **CVAT.ai**: For annotating the image dataset.
 
 ## Getting Started
 
