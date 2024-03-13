@@ -18,6 +18,7 @@ Object detection is a critical task in computer vision, finding applications in 
 
 - **YOLOv8**: For state-of-the-art object detection, offering an optimal balance between speed and accuracy.
 - **Python**: The primary programming language used for model development and scripting.
+- **C++**: Programming language used to implement object detection with the ONNX model.
 - **OpenCV (cv2)**: For image processing tasks, including reading and writing.
 - **ONNX**: Provides a platform-neutral format for model sharing, ensuring broad compatibility.
 - ""CVAT.ai"": For annotating the image dataset.
