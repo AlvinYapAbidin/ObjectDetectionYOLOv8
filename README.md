@@ -35,7 +35,7 @@ Object detection is a critical task in computer vision, finding applications in 
    git clone https://github.com/yourusername/yourprojectname.git
    ```
 2. Navigate to the project directory and create a virtual environment:
-   
+   ```sh
    python -m venv venv
    ```
 3. Activate the virtual environment:
