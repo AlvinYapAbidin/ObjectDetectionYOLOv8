@@ -2,6 +2,9 @@
 
 Welcome to my Computer Vision project repository, focusing on object detection using the cutting-edge YOLOv8 architecture. This project encompasses the development, training, validation, and deployment of a YOLOv8 model tailored for efficient and accurate object detection tasks. My goal through this initiative is not only to demonstrate my technical proficiency in computer vision but also to contribute a ready-to-deploy, high-performance solution to the community.
 
+!YOLOv8 image](image.png)
+
+
 ## Project Overview
 
 Object detection is a critical task in computer vision, finding applications in various domains such as autonomous driving, security surveillance, and augmented reality. Leveraging the YOLOv8 architecture, this project aims to address the need for real-time, accurate object detection, providing a foundation for further research and development in the field.
