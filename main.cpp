@@ -1,73 +1,196 @@
-//https://github.com/JustasBart/yolov8_CPP_Inference_OpenCV_ONNX/blob/minimalistic/inference.cpp
-
-#include <iostream>
+// C++ modules
+#include <fstream>
 #include <vector>
-#include <getopt.h>
+#include <string>
+#include <random>
 
+// OpenCV modules
+#include <opencv2/imgproc.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/dnn.hpp>
 
-#include "inference.h"
+/* Steps
+  1. Load the ONNX model & video
+  2. Run through each frame
+  3. Preprocess the frame
+  4. Run the model
+  6. Post-process the output
+  7. Display/Save the output
+*/
 
-using namespace std;
-using namespace cv;
-
-int main(int argc, char **argv)
+struct Detection
 {
-    std::string projectBasePath = "";
+  // This structure is intended to store
+  int class_id{0};
+  std::string className{};
+  float confidence{0.0};
+  cv::Scalar color{};
+  cv::Rect box{};
+};
+
+int main(int argc, char**argv)
+{
+  std::string modelFilepath{"best.onnx"};
+  std::string videoFilepath{"videos/shot1.mp4"};
+  std::string classesFilePath{"classes.txt"}; 
+
+  cv::VideoCapture cap(videoFilepath);
+  
+  
+
+  if (!cap.isOpened())
+  {
+    return -1;
+  }
+  std::cout << "checkpoint" << std::endl;
+
+  // Required variables
+  int inpWidth  = 640;
+  int inpHeight = 640;
+
+  std::vector<std::string> classes{};
+  std::vector<Detection> detections{};
+
+  float modelConfidenseThreshold {0.25};
+  float modelScoreThreshold      {0.50};
+  float modelNMSThreshold        {0.50};
+
+
+  cv::dnn::Net net = cv::dnn::readNetFromONNX(modelFilepath);
+  std::cout << "\nRunning on CPU" << std::endl;
+  net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
+  net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
+
+  // Load class names from classesFilePath into classes vector
+  std::ifstream ifs(classesFilePath.c_str());
+  std::string line;
+  while (getline(ifs, line)) classes.push_back(line);
     
-    bool runOnGPU = false;
+  cv::Mat frame;
+  while (true)
+  {
+    detections.clear(); // clears the detection at the start of the loop
 
-    //
-    // Pass in either:
-    //
-    // "/source/models/yolov8s.onnx"
-    // or
-    // "/source/models/yolov5s.onnx"
-    //
-    // To run Inference with yolov8/yolov5 (ONNX)
-    //
+    cap >> frame; // Go through video frame-by-frame. Each frame that is stored in 'cap' is stored in 'frame'
+    if (frame.empty()) break;
+
+    /////////////////////      Preprocessing      /////////////////////
     
-    Inference inf(projectBasePath + "runs/detect/train4/weights/best.onnx", cv::Size(640, 640),
-                  projectBasePath + "classes.txt", runOnGPU);
+    cv::Mat blob;
+    cv::dnn::blobFromImage(frame, blob, 1.0/255.0, cv::Size2f(inpWidth, inpHeight), cv::Scalar(), true, false);
+    net.setInput(blob);
 
-    std::vector<std::string> imageNames;
-    imageNames.push_back(projectBasePath + "ball.png");
+    /////////////////////      Forward pass through model      /////////////////////
+    std::vector<cv::Mat> outputs;
+    net.forward(outputs, net.getUnconnectedOutLayersNames());
+    
+    /*  yolov8 has an output of shape (batchSize, 84,  8400) (Num classes + box[x,y,w,h] + confidence[c])
+        Reshape and transpose to prepare for iteration over yolov8 model's output to process each detection. 
+        'row' indicates no. of items and 'dimensions' represents the combined data for each prediction */
+    int dimensions = outputs[0].size[1];
+    int rows = outputs[0].size[2];
+    
+    outputs[0] = outputs[0].reshape(1, dimensions);
+    std::cout << "reshape: " << outputs[0].size << std::endl;
+    cv::transpose(outputs[0], outputs[0]);
+    std::cout << "transpose: " << outputs[0].size << std::endl; 
 
-    for (int i = 0; i < imageNames.size(); ++i)
+    // Pointer initialization for model output data for indexing
+    float *data = (float *)outputs[0].data;
+    float *base_data = (float *)outputs[0].data;
+
+    // Scaling factors which will be used to scale bounding box coordinates later from the model's output to the original input image
+    cv::Mat modelInput = frame;
+
+    float x_factor = modelInput.cols / inpWidth;
+    float y_factor = modelInput.rows / inpHeight;
+
+    /////////////////////     Post-processing     /////////////////////
+    std::vector<int> class_ids;
+    std::vector<float> confidence;
+    std::vector<cv::Rect> bboxes;
+
+    for (int i = 0; i < rows; ++i)
     {
-        cv::Mat frame = cv::imread(imageNames[i]);
+      // Skip the first 4 outputs which are the model's bbox coordinates (x, y, w, h) to get the new pointer of the scores
+      float *classes_scores = data+4;
 
-        // Inference starts here...
-        std::vector<Detection> output = inf.runInference(frame);
+      cv::Mat scores(1, classes.size(), CV_32FC1, classes_scores);
+      cv::Point class_id;
+      double maxClassScore;
 
-        int detections = output.size();
-        std::cout << "Number of detections:" << detections << std::endl;
+      // Store the max score with the associated class id
+      cv::minMaxLoc(scores, 0, &maxClassScore, 0, &class_id);
 
-        for (int i = 0; i < detections; ++i)
-        {
-            Detection detection = output[i];
+      if (maxClassScore > modelScoreThreshold)
+      {
+        // Store the confidence, class ids and bounding boxes into vectors
+        confidence.push_back(maxClassScore);
+        class_ids.push_back(class_id.x); // x component from cv::Point structure returned in maxLoc has the max score
 
-            cv::Rect box = detection.box;
-            cv::Scalar color = detection.color;
+        float x = data[0];
+        float y = data[1];
+        float w = data[2];
+        float h = data[3];
 
-            // Detection box
-            cv::rectangle(frame, box, color, 2);
+        int left  = int((x - 0.5 * w) * x_factor);
+        int top = int((y - 0.5 * h) * y_factor);
 
-            // Detection box text
-            std::string classString = detection.className + ' ' + std::to_string(detection.confidence).substr(0, 4);
-            cv::Size textSize = cv::getTextSize(classString, cv::FONT_HERSHEY_DUPLEX, 1, 2, 0);
-            cv::Rect textBox(box.x, box.y - 40, textSize.width + 10, textSize.height + 20);
+        int width = int(w * x_factor);
+        int height = int(h * y_factor);
 
-            cv::rectangle(frame, textBox, color, cv::FILLED);
-            cv::putText(frame, classString, cv::Point(box.x + 5, box.y - 10), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 0), 2, 0);
-        }
-        // Inference ends here...
+        std::cout <<scores.size << std::endl;
+        printf("First 5 float values: %.2f %.2f %.2f %.2f %.2f %.2f\n", data[0], data[1], data[2], data[3], data[4], data[5]);
 
-        // This is only for preview purposes
-        float scale = 0.8;
-        cv::resize(frame, frame, cv::Size(frame.cols*scale, frame.rows*scale));
-        cv::imshow("Inference", frame);
+        bboxes.push_back(cv::Rect(left, top, width, height));
+      }
 
-        cv::waitKey(-1);
+      data = base_data + i * dimensions;
     }
+
+    /////////////////////     Apply Non-maximum Suppression to filter out overlapping bounding boxes     ///////////////////// 
+
+    std::vector<int> nms_result;
+    cv::dnn::NMSBoxes(bboxes, confidence, modelScoreThreshold, modelNMSThreshold, nms_result);
+
+    for (unsigned long i = 0; i < nms_result.size(); ++i)
+    {
+      // Loop through each bounding box accepted by the NMS filter
+      int index = nms_result[i];
+
+      Detection result;
+      result.class_id = class_ids[index];
+      result.confidence = confidence[index];
+
+      //
+      result.color = cv::Scalar(100, 100, 255);
+
+      result.className = classes[result.class_id];
+      result.box = bboxes[index];
+
+      detections.push_back(result);
+    }
+
+    std::cout << "Number of detections: " << detections.size() << std::endl;
+
+    
+
+    // Draw detections for the current frame
+    for (const auto& detection : detections) 
+    {
+        cv::rectangle(frame, detection.box, detection.color, 2);
+        std::string label = detection.className + ": " + std::to_string(detection.confidence);
+        int baseLine;
+        cv::Size labelSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+        cv::rectangle(frame, cv::Point(detection.box.x, detection.box.y - labelSize.height),
+                      cv::Point(detection.box.x + labelSize.width, detection.box.y + baseLine), detection.color, cv::FILLED);
+        cv::putText(frame, label, cv::Point(detection.box.x, detection.box.y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,0,0));
+    }
+
+  cv::imshow("Frame", frame);
+  if (cv::waitKey(1) == 27) break; // Exit on ESC
+  }
+
+  
+  
 }
